@@ -4,7 +4,6 @@ from pprint import pprint
 from collections.abc import Iterable
 
 from nid.ast.graph_builder.common.identifiers import IdentifierPool
-from nid.ast.graph_builder.common.parser import GraphParser
 from nid.ast.graph_builder.v1.primitives import GNode
 
 
@@ -12,7 +11,7 @@ class GraphParserV1:
     _source = None  # lines of the source code
     _root = None
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.current_condition = []
         self.condition_status = []
         self.scope = []
@@ -225,14 +224,14 @@ class GraphParserV1:
                     type_str += self._source[ln].strip()
         return type_str
 
-    def parse_Module(self, node):
+    def _parse_Module(self, node):
         edges, module_name = self._generic_parse(node, [])
         self.scope.append(module_name)
         self._parse_in_context(module_name, "module", edges, node.body)
         self.scope.pop(-1)
         return edges, module_name
 
-    def parse_FunctionDef(self, node):
+    def _parse_FunctionDef(self, node):
         # need to create function name before generic_parse so that the scope is set up correctly
         # scope is used to create local mentions of variable and function names
         fdef_node_name = self._get_name(node=node)
@@ -268,17 +267,17 @@ class GraphParserV1:
 
         return edges, f_name
 
-    def parse_AsyncFunctionDef(self, node):
-        return self.parse_FunctionDef(node)
+    def _parse_AsyncFunctionDef(self, node):
+        return self._parse_FunctionDef(node)
 
-    def parse_Assign(self, node):
+    def _parse_Assign(self, node):
         edges, assign_name = self._generic_parse(node, ["value", "targets"])
         return edges, assign_name
 
-    def parse_AugAssign(self, node):
+    def _parse_AugAssign(self, node):
         return self._generic_parse(node, ["target", "op", "value"])
 
-    def parse_ClassDef(self, node):
+    def _parse_ClassDef(self, node):
         edges, class_node_name = self._generic_parse(node, [])
         self.scope.append(class_node_name)
 
@@ -292,35 +291,35 @@ class GraphParserV1:
 
         return edges, class_node_name
 
-    def parse_ImportFrom(self, node):
+    def _parse_ImportFrom(self, node):
         if node.module is not None:
             node.module = ast.Name(node.module)
         return self._generic_parse(node, ["module", "names"])
 
-    def parse_Import(self, node):
+    def _parse_Import(self, node):
         return self._generic_parse(node, ["names"])
 
-    def parse_Delete(self, node):
+    def _parse_Delete(self, node):
         return self._generic_parse(node, ["targets"])
 
-    def parse_Global(self, node):
+    def _parse_Global(self, node):
         return self._generic_parse(node, ["names"])
 
-    def parse_Nonlocal(self, node):
+    def _parse_Nonlocal(self, node):
         return self._generic_parse(node, ["names"])
 
-    def parse_With(self, node):
+    def _parse_With(self, node):
         edges, with_name = self._generic_parse(node, ["items"])
         self._parse_in_context(with_name, "with", edges, node.body)
         return edges, with_name
 
-    def parse_AsyncWith(self, node):
-        return self.parse_With(node)
+    def _parse_AsyncWith(self, node):
+        return self._parse_With(node)
 
-    def parse_withitem(self, node):
+    def _parse_withitem(self, node):
         return self._generic_parse(node, ['context_expr', 'optional_vars'])
 
-    def parse_alias(self, node):
+    def _parse_alias(self, node):
         # TODO
         # aliases should be handled by sourcetrail. here i am trying to assign alias to a
         # local mention of the module. maybe I should simply ignore aliases altogether
@@ -330,7 +329,7 @@ class GraphParserV1:
             node.asname = ast.Name(node.asname)
         return self._generic_parse(node, ["name", "asname"])
 
-    def parse_arg(self, node):
+    def _parse_arg(self, node):
         name = self._get_name(node=node)
         edges, mention_name = self._parse_as_mention(node.arg)
         edges.append({"scope": copy(self.scope[-1]), "src": mention_name, "dst": name, "type": 'arg'})
@@ -360,7 +359,7 @@ class GraphParserV1:
             )
         return edges, name
 
-    def parse_AnnAssign(self, node):
+    def _parse_AnnAssign(self, node):
         annotation_string = self._get_source_from_ast_range(node.annotation.lineno, node.annotation.end_lineno,
                                                             node.annotation.col_offset, node.annotation.end_col_offset)
         annotation = GNode(name=annotation_string,
@@ -400,44 +399,44 @@ class GraphParserV1:
             })
         return edges, name
 
-    def parse_Subscript(self, node):
+    def _parse_Subscript(self, node):
         return self._generic_parse(node, ["value", "slice"])
 
-    def parse_Slice(self, node):
+    def _parse_Slice(self, node):
         return self._generic_parse(node, ["lower", "upper", "step"])
 
-    def parse_ExtSlice(self, node):
+    def _parse_ExtSlice(self, node):
         return self._generic_parse(node, ["dims"])
 
-    def parse_Index(self, node):
+    def _parse_Index(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_Lambda(self, node):
+    def _parse_Lambda(self, node):
         # this is too ambiguous
         edges, lmb_name = self._generic_parse(node, [])
         self._parse_and_add_operand(lmb_name, node.body, "lambda", edges)
 
         return edges, lmb_name
 
-    def parse_Starred(self, node):
+    def _parse_Starred(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_Yield(self, node):
+    def _parse_Yield(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_IfExp(self, node):
+    def _parse_IfExp(self, node):
         edges, ifexp_name = self._generic_parse(node, ["test"])
         self._parse_and_add_operand(ifexp_name, node.body, "body", edges)
         self._parse_and_add_operand(ifexp_name, node.orelse, "orelse", edges)
         return edges, ifexp_name
 
-    def parse_ExceptHandler(self, node):
+    def _parse_ExceptHandler(self, node):
         return self._generic_parse(node, ["type"])
 
-    def parse_Call(self, node):
+    def _parse_Call(self, node):
         return self._generic_parse(node, ["func", "args", "keywords"])
 
-    def parse_keyword(self, node):
+    def _parse_keyword(self, node):
         # change arg name so that it does not mix with variable names
         if isinstance(node.arg, str):
             node.arg += "@#keyword#"
@@ -445,145 +444,145 @@ class GraphParserV1:
         else:
             return self._generic_parse(node, ["value"])
 
-    def parse_name(self, node):
+    def _parse_name(self, node):
         if isinstance(node, ast.Name):
             return self._parse_as_mention(str(node.id))
         elif isinstance(node, ast.NameConstant):
             return GNode(name=str(node.value), type="NameConstant")
 
-    def parse_Attribute(self, node):
+    def _parse_Attribute(self, node):
         if node.attr is not None:
             node.attr += "@#attr#"
         return self._generic_parse(node, ["value", "attr"])
 
-    def parse_Name(self, node):
-        return self.parse_name(node)
+    def _parse_Name(self, node):
+        return self._parse_name(node)
 
-    def parse_NameConstant(self, node):
-        return self.parse_name(node)
+    def _parse_NameConstant(self, node):
+        return self._parse_name(node)
 
-    def parse_Constant(self, node):
+    def _parse_Constant(self, node):
         name = GNode(name="Constant_", type="Constant")
         return name
 
-    def parse_op_name(self, node):
+    def _parse_op_name(self, node):
         return GNode(name=node.__class__.__name__, type="Op")
 
-    def parse_And(self, node):
-        return self.parse_op_name(node)
+    def _parse_And(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Or(self, node):
-        return self.parse_op_name(node)
+    def _parse_Or(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Not(self, node):
-        return self.parse_op_name(node)
+    def _parse_Not(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Is(self, node):
-        return self.parse_op_name(node)
+    def _parse_Is(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Gt(self, node):
-        return self.parse_op_name(node)
+    def _parse_Gt(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Lt(self, node):
-        return self.parse_op_name(node)
+    def _parse_Lt(self, node):
+        return self._parse_op_name(node)
 
-    def parse_GtE(self, node):
-        return self.parse_op_name(node)
+    def _parse_GtE(self, node):
+        return self._parse_op_name(node)
 
-    def parse_LtE(self, node):
-        return self.parse_op_name(node)
+    def _parse_LtE(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Add(self, node):
-        return self.parse_op_name(node)
+    def _parse_Add(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Mod(self, node):
-        return self.parse_op_name(node)
+    def _parse_Mod(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Sub(self, node):
-        return self.parse_op_name(node)
+    def _parse_Sub(self, node):
+        return self._parse_op_name(node)
 
-    def parse_UAdd(self, node):
-        return self.parse_op_name(node)
+    def _parse_UAdd(self, node):
+        return self._parse_op_name(node)
 
-    def parse_USub(self, node):
-        return self.parse_op_name(node)
+    def _parse_USub(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Div(self, node):
-        return self.parse_op_name(node)
+    def _parse_Div(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Mult(self, node):
-        return self.parse_op_name(node)
+    def _parse_Mult(self, node):
+        return self._parse_op_name(node)
 
-    def parse_MatMult(self, node):
-        return self.parse_op_name(node)
+    def _parse_MatMult(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Pow(self, node):
-        return self.parse_op_name(node)
+    def _parse_Pow(self, node):
+        return self._parse_op_name(node)
 
-    def parse_FloorDiv(self, node):
-        return self.parse_op_name(node)
+    def _parse_FloorDiv(self, node):
+        return self._parse_op_name(node)
 
-    def parse_RShift(self, node):
-        return self.parse_op_name(node)
+    def _parse_RShift(self, node):
+        return self._parse_op_name(node)
 
-    def parse_LShift(self, node):
-        return self.parse_op_name(node)
+    def _parse_LShift(self, node):
+        return self._parse_op_name(node)
 
-    def parse_BitXor(self, node):
-        return self.parse_op_name(node)
+    def _parse_BitXor(self, node):
+        return self._parse_op_name(node)
 
-    def parse_BitAnd(self, node):
-        return self.parse_op_name(node)
+    def _parse_BitAnd(self, node):
+        return self._parse_op_name(node)
 
-    def parse_BitOr(self, node):
-        return self.parse_op_name(node)
+    def _parse_BitOr(self, node):
+        return self._parse_op_name(node)
 
-    def parse_IsNot(self, node):
-        return self.parse_op_name(node)
+    def _parse_IsNot(self, node):
+        return self._parse_op_name(node)
 
-    def parse_NotIn(self, node):
-        return self.parse_op_name(node)
+    def _parse_NotIn(self, node):
+        return self._parse_op_name(node)
 
-    def parse_In(self, node):
-        return self.parse_op_name(node)
+    def _parse_In(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Invert(self, node):
-        return self.parse_op_name(node)
+    def _parse_Invert(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Eq(self, node):
-        return self.parse_op_name(node)
+    def _parse_Eq(self, node):
+        return self._parse_op_name(node)
 
-    def parse_NotEq(self, node):
-        return self.parse_op_name(node)
+    def _parse_NotEq(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Ellipsis(self, node):
-        return self.parse_op_name(node)
+    def _parse_Ellipsis(self, node):
+        return self._parse_op_name(node)
 
-    def parse_Num(self, node):
+    def _parse_Num(self, node):
         return str(node.n)
 
-    def parse_Str(self, node):
+    def _parse_Str(self, node):
         return self._generic_parse(node, [])
 
-    def parse_Bytes(self, node):
+    def _parse_Bytes(self, node):
         return repr(node.s)
 
-    def parse_If(self, node):
+    def _parse_If(self, node):
         edges, if_name = self._generic_parse(node, ["test"])
         self._parse_in_context(if_name, "if_true", edges, node.body)
         self._parse_in_context(if_name, "if_false", edges, node.orelse)
         return edges, if_name
 
-    def parse_For(self, node):
+    def _parse_For(self, node):
         edges, for_name = self._generic_parse(node, ["target", "iter"])
         self._parse_in_context(for_name, "for", edges, node.body)
         self._parse_in_context(for_name, "for_orelse", edges, node.orelse)
         return edges, for_name
 
-    def parse_AsyncFor(self, node):
-        return self.parse_For(node)
+    def _parse_AsyncFor(self, node):
+        return self._parse_For(node)
 
-    def parse_Try(self, node):
+    def _parse_Try(self, node):
         edges, try_name = self._generic_parse(node, [])
         self._parse_in_context(try_name, "try", edges, node.body)
 
@@ -600,7 +599,7 @@ class GraphParserV1:
 
         return edges, try_name
 
-    def parse_While(self, node):
+    def _parse_While(self, node):
 
         edges, while_name = self._generic_parse(node, ["test"])
 
@@ -608,19 +607,19 @@ class GraphParserV1:
 
         return edges, while_name
 
-    def parse_Compare(self, node):
+    def _parse_Compare(self, node):
         return self._generic_parse(node, ["left", "ops", "comparators"])
 
-    def parse_BoolOp(self, node):
+    def _parse_BoolOp(self, node):
         return self._generic_parse(node, ["values", "op"])
 
-    def parse_Expr(self, node):
+    def _parse_Expr(self, node):
         edges = []
         expr_name, ext_edges = self._parse_operand(node.value)
         edges.extend(ext_edges)
         return edges, expr_name
 
-    def parse_control_flow(self, node):
+    def _parse_control_flow(self, node):
         edges = []
         ctrlflow_name = self._get_name(name="ctrl_flow", type="CtlFlowInstance", add_random_identifier=True)
         edges.append({
@@ -630,71 +629,71 @@ class GraphParserV1:
         })
         return edges, ctrlflow_name
 
-    def parse_Continue(self, node):
-        return self.parse_control_flow(node)
+    def _parse_Continue(self, node):
+        return self._parse_control_flow(node)
 
-    def parse_Break(self, node):
-        return self.parse_control_flow(node)
+    def _parse_Break(self, node):
+        return self._parse_control_flow(node)
 
-    def parse_Pass(self, node):
-        return self.parse_control_flow(node)
+    def _parse_Pass(self, node):
+        return self._parse_control_flow(node)
 
-    def parse_Assert(self, node):
+    def _parse_Assert(self, node):
         return self._generic_parse(node, ["test", "msg"])
 
-    def parse_List(self, node):
+    def _parse_List(self, node):
         return self._generic_parse(node, ["elts"], ensure_iterables=True)
 
-    def parse_Tuple(self, node):
+    def _parse_Tuple(self, node):
         return self._generic_parse(node, ["elts"], ensure_iterables=True)
 
-    def parse_Set(self, node):
+    def _parse_Set(self, node):
         return self._generic_parse(node, ["elts"], ensure_iterables=True)
 
-    def parse_Dict(self, node):
+    def _parse_Dict(self, node):
         return self._generic_parse(node, ["keys", "values"], ensure_iterables=True)
 
-    def parse_UnaryOp(self, node):
+    def _parse_UnaryOp(self, node):
         return self._generic_parse(node, ["operand", "op"])
 
-    def parse_BinOp(self, node):
+    def _parse_BinOp(self, node):
         return self._generic_parse(node, ["left", "right", "op"])
 
-    def parse_Await(self, node):
+    def _parse_Await(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_JoinedStr(self, node):
+    def _parse_JoinedStr(self, node):
         joinedstr_name = GNode(name="JoinedStr_", type="JoinedStr")
         return [], joinedstr_name
 
-    def parse_FormattedValue(self, node):
+    def _parse_FormattedValue(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_GeneratorExp(self, node):
+    def _parse_GeneratorExp(self, node):
         return self._generic_parse(node, ["elt", "generators"])
 
-    def parse_ListComp(self, node):
+    def _parse_ListComp(self, node):
         return self._generic_parse(node, ["elt", "generators"])
 
-    def parse_DictComp(self, node):
+    def _parse_DictComp(self, node):
         return self._generic_parse(node, ["key", "value", "generators"])
 
-    def parse_SetComp(self, node):
+    def _parse_SetComp(self, node):
         return self._generic_parse(node, ["elt", "generators"])
 
-    def parse_Return(self, node):
+    def _parse_Return(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_Raise(self, node):
+    def _parse_Raise(self, node):
         return self._generic_parse(node, ["exc", "cause"])
 
-    def parse_YieldFrom(self, node):
+    def _parse_YieldFrom(self, node):
         return self._generic_parse(node, ["value"])
 
-    def parse_arguments(self, node):
+    def _parse_arguments(self, node):
         return self._generic_parse(node, ["args", "vararg"])  # kwarg, kwonlyargs, posonlyargs???
 
-    def parse_comprehension(self, node):
+    def _parse_comprehension(self, node):
         edges = []
 
         cph_name = self._get_name(name="comprehension", type="comprehension", add_random_identifier=True)

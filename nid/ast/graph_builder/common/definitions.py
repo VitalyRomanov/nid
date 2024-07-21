@@ -2,7 +2,11 @@ import ast
 from collections import defaultdict
 from enum import Enum
 from itertools import chain
-from typing import Dict, List, Optional, Set, Type
+from typing import Dict, List, Optional, Set, Type, Any
+
+GraphNodeId = str
+NodeImage = Dict[str, Any]
+EdgeImage = Dict[str, Any]
 
 
 def get_all_node_edge_associations() -> Dict[str, List[str]]:
@@ -27,7 +31,7 @@ class PythonNodeEdgeDefinitions:
     ast_node_type_edges = get_all_node_edge_associations()
     overridden_node_type_edges = defaultdict(list)
     context_edge_names = defaultdict(list)
-    extra_edge_types = set()
+    extra_edge_types = {"next"}
 
     # exceptions needed when we do not want to filter some edge types using a simple rule `_rev`
     reverse_edge_exceptions = {
@@ -57,9 +61,7 @@ class PythonNodeEdgeDefinitions:
 
     # extra node types exist for keywords and attributes to prevent them from
     # getting mixed with local variable mentions
-    extra_node_types = {
-        "next"
-    }
+    extra_node_types = set()
 
     @classmethod
     def regular_node_types(cls) -> Set[str]:
@@ -106,8 +108,9 @@ class PythonNodeEdgeDefinitions:
             set(chain(*cls.ast_node_type_edges.values())) |
             set(chain(*cls.overridden_node_type_edges.values())) |
             cls.scope_edges() |
-            cls.extra_edge_types | cls.named_nodes | cls.constant_nodes |
-            cls.operand_nodes | cls.control_flow_nodes | cls.extra_node_types
+            cls.extra_edge_types
+            # | cls.named_nodes | cls.constant_nodes |
+            # cls.operand_nodes | cls.control_flow_nodes | cls.extra_node_types
         )
 
         reverse_edges = list(cls.compute_reverse_edges(direct_edges))
@@ -119,15 +122,15 @@ class PythonNodeEdgeDefinitions:
     @classmethod
     def make_node_type_enum(cls) -> Type[Enum]:
         if not cls._node_type_enum_initialized:
-            cls._node_type_enum = Enum("NodeTypes", " ".join(cls.node_types()))
+            cls._node_type_enum = Enum("NodeTypes", " ".join(cls.node_types()))  # type: ignore
             cls._node_type_enum_initialized = True
-        assert cls._node_type_enum is not None  # silence type checker
-        return cls._node_type_enum
+        # assert cls._node_type_enum is not None  # silence type checker
+        return cls._node_type_enum  # type: ignore
 
     @classmethod
     def make_edge_type_enum(cls) -> Type[Enum]:
         if not cls._edge_type_enum_initialized:
-            cls._edge_type_enum = Enum("EdgeTypes", " ".join(cls.edge_types()))
+            cls._edge_type_enum = Enum("EdgeTypes", " ".join(cls.edge_types()))  # type: ignore
             cls._edge_type_enum_initialized = True
-        assert cls._edge_type_enum is not None  # silence type checker
-        return cls._edge_type_enum
+        # assert cls._edge_type_enum is not None  # silence type checker
+        return cls._edge_type_enum  # type: ignore

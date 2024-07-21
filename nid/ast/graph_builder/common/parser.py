@@ -5,15 +5,10 @@ from abc import ABC
 from copy import copy
 from typing import Any, Iterable, Optional, Tuple, Type, List, Union, Dict
 
-from nid.ast.graph_builder.common.definitions import PythonNodeEdgeDefinitions
+from nid.ast.graph_builder.common.definitions import PythonNodeEdgeDefinitions, GraphNodeId, EdgeImage, NodeImage
 from nid.ast.graph_builder.common.graph import ParsedGraph
 from nid.ast.graph_builder.common.identifiers import IdentifierPool
 from nid.ast.string_tools import to_offsets, get_cum_lens, get_byte_to_char_map
-
-
-GraphNodeId = str
-NodeImage = Dict[str, Any]
-EdgeImage = Dict[str, Any]
 
 
 class GraphParser(ABC):
@@ -25,12 +20,14 @@ class GraphParser(ABC):
 
     _node_types: Type[Enum]
     _edge_types: Type[Enum]
-    _node_pool: Optional[Dict[GraphNodeId, NodeImage]]
+    _node_pool: Optional[Dict[GraphNodeId, Any]]
     _identifier_pool: IdentifierPool  # TODO should make Optional?
 
     _current_condition: List[GraphNodeId]
-    _condition_status: List[str]
+    _condition_status: List[Union[str, Enum]]
     _scope: List[GraphNodeId]
+
+    _edges: List[EdgeImage]
 
     def __init__(self, graph_definitions: Type[PythonNodeEdgeDefinitions]):
         self._node_types = graph_definitions.make_node_type_enum()
@@ -363,12 +360,12 @@ class GraphParser(ABC):
         self._add_edge(edges, src=operand_name, dst=node_name, type=type, scope=self._latest_scope,
                        position_node=operand)
 
-    def _parse_in_context(self, cond_name: Union[str, List[str]], cond_stat: Union[str, List[str]], edges: List, body: Iterable[ast.AST]) -> None:
+    def _parse_in_context(self, cond_name: Union[str, List[str]], cond_stat: Union[str, Enum, List[Union[str, Enum]]], edges: List, body: Iterable[ast.AST]) -> None:
         if not isinstance(cond_name, list):
             cond_name = [cond_name]
             cond_stat = [cond_stat]  # type: ignore
 
-        for cn, cs in zip(cond_name, cond_stat):
+        for cn, cs in zip(cond_name, cond_stat):  # type: ignore
             self._current_condition.append(cn)
             self._condition_status.append(cs)
 
@@ -416,7 +413,7 @@ class GraphParser(ABC):
 
     def _generic_parse(
             self, node: ast.AST, operands: Iterable[str], with_name: Optional[GraphNodeId] = None, **kwargs
-        ) -> Tuple[List[EdgeImage], GraphNodeId]:
+        ) -> Tuple[List[Any], GraphNodeId]:
         edges: List[EdgeImage] = []
 
         if with_name is None:
@@ -443,7 +440,7 @@ class GraphParser(ABC):
     def _parse_node(self, node: ast.AST) -> Tuple[List[EdgeImage], GraphNodeId]:
         return self._generic_parse(node, node._fields)
 
-    def _normalize_edges(self, edges: List[EdgeImage]) -> List[EdgeImage]:
+    def _normalize_edges(self, edges: Iterable[EdgeImage]) -> List[EdgeImage]:
         """
         Convert all edge types to strings, assign edge ids.
         """
@@ -452,7 +449,7 @@ class GraphParser(ABC):
             edges_.append(copy(edge))
             if not isinstance(edge["type"], str):
                 edges_[-1]["type"] = edges_[-1]["type"].name
-            edges_[-1]["id"] = str(ind)
+            edges_[-1]["edge_hash"] = str(ind)
         return edges_
 
     def _normalize_nodes(self, nodes: Dict[GraphNodeId, Any]) -> List[NodeImage]:
@@ -460,14 +457,16 @@ class GraphParser(ABC):
         Convert all node types to strings, assign node ids.
         """
         nodes_: List[NodeImage] = []
-        for ind, node in nodes.items():
+        for id_, node in nodes.items():
             nodes_.append(copy(node))
             if not isinstance(node["type"], str):
                 nodes_[-1]["type"] = nodes_[-1]["type"].name
-            nodes_[-1]["id"] = str(ind)
+            nodes_[-1]["node_hash"] = str(id_)
+            nodes_[-1]["string"] = nodes_[-1].get("string")
         return nodes_
 
-    def parse(self, source: str) -> "ParsedGraph":
+    def _initialize_state(self, source: str):
+        self._edges = []
         self._node_pool = dict()
         self._original_source = source
         self._source_lines = source.split("\n")
@@ -475,22 +474,17 @@ class GraphParser(ABC):
         self._cum_lens = get_cum_lens(self._original_source, as_bytes=True)
         self._byte2char = get_byte_to_char_map(self._original_source)
 
-        edges = self._normalize_edges(self._parse_node(self._root)[0])
-        nodes = self._normalize_nodes(self._node_pool)
-        graph = ParsedGraph(nodes, edges)
+    def parse(self, source: str) -> ParsedGraph:
+        self._initialize_state(source)
 
-        self._node_pool = None
-        self._original_source = None
-        self._source_lines = None
-        self._root = None
-        self._cum_lens = None
-        self._byte2char = None
+        self._edges = self._normalize_edges(self._parse_node(self._root)[0])  # type: ignore
+        graph = ParsedGraph(source, self._normalize_nodes(self._node_pool), self._edges)  # type: ignore
         return graph
 
 
 if __name__ == "__main__":
     parser = GraphParser(PythonNodeEdgeDefinitions)
     from nid.validation.ast_node_examples import PythonCodeExamplesForNodes
-    # for example, code in PythonCodeExamplesForNodes.examples.items():
-    #     parser.parse(code)
-    parser.parse(PythonCodeExamplesForNodes.examples["FunctionDef2"])
+    for example, code in PythonCodeExamplesForNodes.examples.items():
+        parser.parse(code).as_df()
+    # parser.parse(PythonCodeExamplesForNodes.examples["FunctionDef2"])

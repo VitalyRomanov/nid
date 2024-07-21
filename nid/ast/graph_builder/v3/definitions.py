@@ -5,13 +5,8 @@ from typing import Type
 from nid.ast.graph_builder.common.definitions import PythonNodeEdgeDefinitions as PythonNodeEdgeDefinitionsCommon
 
 
-class PythonNodeEdgeDefinitions(PythonNodeEdgeDefinitionsCommon):
-    _node_type_enum_initialized = False
-    _edge_type_enum_initialized = False
+class PythonNodeEdgeDefinitionsV3(PythonNodeEdgeDefinitionsCommon):
     _shared_node_types_initialized = False
-
-    _node_type_enum = None
-    _edge_type_enum = None
 
     shared_node_types = None
 
@@ -159,44 +154,44 @@ class PythonNodeEdgeDefinitions(PythonNodeEdgeDefinitionsCommon):
         "CtlFlow", "CtlFlowInstance", "instance", "ctx"
     }
 
-    @classmethod
-    def node_types_with_default_edges(cls):
-        return set(cls.ast_node_type_edges.keys())
+    # @classmethod
+    # def regular_node_types(cls):
+    #     return set(cls.ast_node_type_edges.keys())
+    #
+    # @classmethod
+    # def overridden_node_types(cls):
+    #     return set(cls.overridden_node_type_edges.keys())
 
-    @classmethod
-    def node_types_with_overriden_edges(cls):
-        return set(cls.overridden_node_type_edges.keys())
+    # @classmethod
+    # def node_types(cls):
+    #     return list(
+    #         cls.regular_node_types() |
+    #         cls.overridden_node_types() |
+    #         cls.iterable_nodes | cls.named_nodes | cls.constant_nodes |
+    #         cls.operand_nodes | cls.control_flow_nodes | cls.extra_node_types
+    #     )
 
-    @classmethod
-    def node_types(cls):
-        return list(
-            cls.node_types_with_default_edges() |
-            cls.node_types_with_overriden_edges() |
-            cls.iterable_nodes | cls.named_nodes | cls.constant_nodes |
-            cls.extra_node_types | cls.operand_nodes | cls.control_flow_nodes
-        )
+    # @classmethod
+    # def scope_edges(cls):
+    #     return set(map(lambda x: x, chain(*cls.context_edge_names.values())))  # "defined_in_" +
 
-    @classmethod
-    def scope_edges(cls):
-        return set(map(lambda x: x, chain(*cls.context_edge_names.values())))  # "defined_in_" +
+    # @classmethod
+    # def auxiliary_edges(cls):
+    #     direct_edges = cls.scope_edges() | cls.extra_edge_types
+    #     reverse_edges = cls.compute_reverse_edges(direct_edges)
+    #     return direct_edges | reverse_edges
 
-    @classmethod
-    def auxiliary_edges(cls):
-        direct_edges = cls.scope_edges() | cls.extra_edge_types
-        reverse_edges = cls.compute_reverse_edges(direct_edges)
-        return direct_edges | reverse_edges
-
-    @classmethod
-    def compute_reverse_edges(cls, direct_edges):
-        reverse_edges = set()
-        for edge in direct_edges:
-            if edge in cls.reverse_edge_exceptions:
-                reverse = cls.reverse_edge_exceptions[edge]
-                if reverse is not None:
-                    reverse_edges.add(reverse)
-            else:
-                reverse_edges.add(edge + "_rev")
-        return reverse_edges
+    # @classmethod
+    # def compute_reverse_edges(cls, direct_edges):
+    #     reverse_edges = set()
+    #     for edge in direct_edges:
+    #         if edge in cls.reverse_edge_exceptions:
+    #             reverse = cls.reverse_edge_exceptions[edge]
+    #             if reverse is not None:
+    #                 reverse_edges.add(reverse)
+    #         else:
+    #             reverse_edges.add(edge + "_rev")
+    #     return reverse_edges
 
     @classmethod
     def edge_types(cls):
@@ -210,21 +205,19 @@ class PythonNodeEdgeDefinitions(PythonNodeEdgeDefinitionsCommon):
         reverse_edges = list(cls.compute_reverse_edges(direct_edges))
         return direct_edges + reverse_edges
 
-    @classmethod
-    def make_node_type_enum(cls) -> Type[Enum]:
-        if not cls._node_type_enum_initialized:
-            cls._node_type_enum = Enum("NodeTypes", " ".join(cls.node_types()))
-            cls._node_type_enum_initialized = True
-        assert cls._node_type_enum is not None
-        return cls._node_type_enum
+    # @classmethod
+    # def make_node_type_enum(cls) -> Type[Enum]:
+    #     if not cls._node_type_enum_initialized:
+    #         cls._node_type_enum = Enum("NodeTypes", " ".join(cls.node_types()))  # type: ignore
+    #         cls._node_type_enum_initialized = True
+    #     return cls._node_type_enum  # type: ignore
 
-    @classmethod
-    def make_edge_type_enum(cls) -> Type[Enum]:
-        if not cls._edge_type_enum_initialized:
-            cls._edge_type_enum = Enum("EdgeTypes", " ".join(cls.edge_types()))
-            cls._edge_type_enum_initialized = True
-        assert cls._edge_type_enum is not None
-        return cls._edge_type_enum
+    # @classmethod
+    # def make_edge_type_enum(cls) -> Type[Enum]:
+    #     if not cls._edge_type_enum_initialized:
+    #         cls._edge_type_enum = Enum("EdgeTypes", " ".join(cls.edge_types()))  # type: ignore
+    #         cls._edge_type_enum_initialized = True
+    #     return cls._edge_type_enum  # type: ignore
 
     @classmethod
     def _initialize_shared_nodes(cls):

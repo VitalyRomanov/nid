@@ -1,17 +1,18 @@
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import pandas as pd
 
-from nid.ast.graph_builder.v3.primitives import GraphEdge, GraphNode
+from nid.ast.graph_builder.common.definitions import NodeImage, EdgeImage
 
 
 def nodes_edges_to_df(
-        nodes: List[GraphNode], edges: List[GraphEdge], make_table=True
+        nodes: List[NodeImage], edges: List[EdgeImage], make_table: bool = True
     ) -> Tuple[Union[List[Dict], pd.DataFrame], Union[List[Dict], pd.DataFrame], Union[List[Dict], pd.DataFrame]]:
     edge_specification: Dict[str, Tuple[str, str, Optional[Callable]]] = {
         "id": ("edge_hash", "string", None),
         "src": ("src", "string", None),
         "dst": ("dst", "string", None),
-        "type": ("type", "string", lambda x: x.name),
+        "type": ("type", "string", lambda x: x.name if isinstance(x, Enum) else x),
         "scope": ("scope", "string", None),
         "offset_start": ("offset_start", "Int64", None),
         "offset_end": ("offset_end", "Int64", None),
@@ -20,7 +21,7 @@ def nodes_edges_to_df(
     node_specification: Dict[str, Tuple[str, str, Optional[Callable]]] = {
         "id": ("node_hash", "string", None),
         "name": ("name", "string", None),
-        "type": ("type", "string", lambda x: x.name),
+        "type": ("type", "string", lambda x: x.name if isinstance(x, Enum) else x),
         "scope": ("scope", "string", None),
         "string": ("string", "string", None),
         "offset_start": ("offset_start", "Int64", None),
@@ -34,10 +35,11 @@ def nodes_edges_to_df(
         "scope": ("scope", "string", None),
     }
 
-    def format_for_table(collection: List[Union[GraphNode, GraphEdge]]) -> List[Dict[str, Any]]:
+    def format_for_table(collection: List[Union[NodeImage, EdgeImage]]) -> List[Dict[str, Any]]:
         entries = []
         for record in collection:
-            entries.append(record.__dict__)
+            entries.append(record)
+            # entries.append(record.__dict__)
         return entries
 
     def create_table(collection, specification):
@@ -45,6 +47,8 @@ def nodes_edges_to_df(
 
         column_order = []
         for trg_col, (src_col, dtype, preproc_fn) in specification.items():
+            if src_col not in table.columns:
+                table[src_col] = pd.NA
             trg = table[src_col]
             if preproc_fn is not None:
                 trg = trg.apply(preproc_fn)
@@ -55,7 +59,7 @@ def nodes_edges_to_df(
     def get_offsets(edges) -> List[Dict[str, Any]]:
         offsets = []
         for edge in edges:
-            if edge["offset_start"] is not None:
+            if edge.get("offset_start") is not None:
                 offsets.append({
                     "node_id": edge["src"],
                     "offset_start": edge["offset_start"],

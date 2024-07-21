@@ -5,5 +5,6 @@ __pycache__
 .vscode
 .project
 .pydevproject
+pyrightconfig.json
 *.png
 *.txt
