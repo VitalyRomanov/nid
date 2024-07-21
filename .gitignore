@@ -1,0 +1,9 @@
+__pycache__
+*.egg-info
+.lprof
+.idea
+.vscode
+.project
+.pydevproject
+*.png
+*.txt
