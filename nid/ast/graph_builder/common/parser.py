@@ -1,7 +1,7 @@
 import ast
 from enum import Enum
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from copy import copy
 from typing import Any, Iterable, Optional, Tuple, Type, List, Union, Dict
 
@@ -11,7 +11,13 @@ from nid.ast.graph_builder.common.identifiers import IdentifierPool
 from nid.ast.string_tools import to_offsets, get_cum_lens, get_byte_to_char_map
 
 
-class GraphParser(ABC):
+class AbstractGraphParser(ABC):
+    @abstractmethod
+    def parse(self, source_code: str) -> ParsedGraph:
+        raise NotImplementedError()
+
+
+class GraphParser(AbstractGraphParser):
     _original_source: Optional[str]
     _source_lines: Optional[List[str]]
     _root: Optional[ast.AST]
@@ -29,7 +35,8 @@ class GraphParser(ABC):
 
     _edges: List[EdgeImage]
 
-    def __init__(self, graph_definitions: Type[PythonNodeEdgeDefinitions]):
+    def __init__(self, graph_definitions: Type[PythonNodeEdgeDefinitions], **kwargs):
+        self._graph_definitions = graph_definitions
         self._node_types = graph_definitions.make_node_type_enum()
         self._edge_types = graph_definitions.make_edge_type_enum()
         self._node_pool = dict()
@@ -109,11 +116,16 @@ class GraphParser(ABC):
         return edges
 
     def _handle_span_exceptions(
-            self, node: Union[ast.AST, str], positions: Dict[str, int]
-    ) -> Optional[Tuple[int, int]]:
+            self, node: Union[ast.AST, str], positions: Dict[str, int], return_ast_positions: bool = False
+    ) -> Union[Optional[Tuple[int, int]], Tuple[Optional[Tuple[int, int]], Dict[str, int]]]:
         """
         For some of ast nodes, adjust their spans so that the span references the keywords or 
         key token instead
+
+        :param node: ast node or string representation
+        :param positions: dictionary containing line and column offsets abtained from ast node
+        :param return_ast_positions: whether to return the dictionary with the adjusted ast node positions
+        :return: adjusted span or (adjusted span, adjusted ast node positions)
         """
         assert self._original_source is not None
         assert self._source_lines is not None
@@ -245,6 +257,8 @@ class GraphParser(ABC):
                     expected_string == self._original_source[positions_offset[0]: positions_offset[1]]
                 ), f"{expected_string} != {self._original_source[positions_offset[0]: positions_offset[1]]}"
 
+        if return_ast_positions:
+            return positions_offset, positions
         return positions_offset
 
     def _into_offset(self, range: Union[Tuple[int, int, int, int], Dict[str, int]]) -> Optional[Tuple[int, int]]:
@@ -272,7 +286,7 @@ class GraphParser(ABC):
                 "end_col_offset": node.end_col_offset  # type: ignore
             }
             positions_ = self._into_offset(positions)
-            if full is False:  # TODO a better name for variable
+            if full is False:  # TODO a better name for variable `full`
                 positions_ = self._handle_span_exceptions(node, positions)
             return_positions = positions_
         return return_positions

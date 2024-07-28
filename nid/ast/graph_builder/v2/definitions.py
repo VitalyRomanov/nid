@@ -1,8 +1,10 @@
 from enum import Enum
 from itertools import chain
 
+from nid.ast.graph_builder import PythonNodeEdgeDefinitions
 
-class PythonNodeEdgeDefinitions:
+
+class PythonNodeEdgeDefinitionsV2(PythonNodeEdgeDefinitions):
     ast_node_type_edges = {
         "Assign": ["value", "targets"],
         "AugAssign": ["target", "op", "value"],
@@ -137,45 +139,6 @@ class PythonNodeEdgeDefinitions:
     }
 
     @classmethod
-    def regular_node_types(cls):
-        return set(cls.ast_node_type_edges.keys())
-
-    @classmethod
-    def overridden_node_types(cls):
-        return set(cls.overridden_node_type_edges.keys())
-
-    @classmethod
-    def node_types(cls):
-        return list(
-            cls.regular_node_types() |
-            cls.overridden_node_types() |
-            cls.iterable_nodes | cls.named_nodes | cls.constant_nodes |
-            cls.operand_nodes | cls.control_flow_nodes | cls.extra_node_types
-        )
-
-    @classmethod
-    def scope_edges(cls):
-        return set(map(lambda x: x, chain(*cls.context_edge_names.values())))  # "defined_in_" +
-
-    @classmethod
-    def auxiliary_edges(cls):
-        direct_edges = cls.scope_edges() | cls.extra_edge_types
-        reverse_edges = cls.compute_reverse_edges(direct_edges)
-        return direct_edges | reverse_edges
-
-    @classmethod
-    def compute_reverse_edges(cls, direct_edges):
-        reverse_edges = set()
-        for edge in direct_edges:
-            if edge in cls.reverse_edge_exceptions:
-                reverse = cls.reverse_edge_exceptions[edge]
-                if reverse is not None:
-                    reverse_edges.add(reverse)
-            else:
-                reverse_edges.add(edge + "_rev")
-        return reverse_edges
-
-    @classmethod
     def edge_types(cls):
         direct_edges = list(
             set(chain(*cls.ast_node_type_edges.values())) |
@@ -188,47 +151,28 @@ class PythonNodeEdgeDefinitions:
         reverse_edges = list(cls.compute_reverse_edges(direct_edges))
         return direct_edges + reverse_edges
 
-    def __init__(self):
-        raise Exception(f"{self.__class__.__name__} is a static class")
 
-
-PythonAstNodeTypes = Enum(
-    "PythonAstNodeTypes",
-    " ".join(
-        PythonNodeEdgeDefinitions.node_types()
-    )
-)
-
-
-PythonAstEdgeTypes = Enum(
-    "PythonAstEdgeTypes",
-    " ".join(
-        PythonNodeEdgeDefinitions.edge_types()
-    )
-)
-
-
-class PythonSharedNodes:
-    annotation_types = {"type_annotation", "returned_by"}
-    tokenizable_types = {"Name", "#attr#", "#keyword#"}
-    python_token_types = {"Op", "Constant", "JoinedStr", "CtlFlow", "ast_Literal"}
-    subword_types = {'subword'}
-
-    subword_leaf_types = annotation_types | subword_types | python_token_types
-    named_leaf_types = annotation_types | tokenizable_types | python_token_types
-    tokenizable_types_and_annotations = annotation_types | tokenizable_types
-
-    shared_node_types = annotation_types | subword_types | tokenizable_types | python_token_types
-
-    @classmethod
-    def is_shared(cls, node):
-        # nodes that are of stared type
-        # nodes that are subwords of keyword arguments
-        return cls.is_shared_name_type(node.name, node.type)
-
-    @classmethod
-    def is_shared_name_type(cls, name, type):
-        if type in cls.shared_node_types or \
-                (type == "subword_instance" and "0x" not in name):
-            return True
-        return False
+# class PythonSharedNodes:
+#     annotation_types = {"type_annotation", "returned_by"}
+#     tokenizable_types = {"Name", "#attr#", "#keyword#"}
+#     python_token_types = {"Op", "Constant", "JoinedStr", "CtlFlow", "ast_Literal"}
+#     subword_types = {'subword'}
+#
+#     subword_leaf_types = annotation_types | subword_types | python_token_types
+#     named_leaf_types = annotation_types | tokenizable_types | python_token_types
+#     tokenizable_types_and_annotations = annotation_types | tokenizable_types
+#
+#     shared_node_types = annotation_types | subword_types | tokenizable_types | python_token_types
+#
+#     @classmethod
+#     def is_shared(cls, node):
+#         # nodes that are of stared type
+#         # nodes that are subwords of keyword arguments
+#         return cls.is_shared_name_type(node.name, node.type)
+#
+#     @classmethod
+#     def is_shared_name_type(cls, name, type):
+#         if type in cls.shared_node_types or \
+#                 (type == "subword_instance" and "0x" not in name):
+#             return True
+#         return False

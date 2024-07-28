@@ -495,7 +495,7 @@ class AstGraphGenerator(object):
         expr_name, ext_edges = self.parse_operand(node.value)
         edges.extend(ext_edges)
         
-        # for cond_name, cons_stat in zip(self.current_condition, self.condition_status):
+        # for cond_name, cons_stat in zip(self._current_condition, self._condition_status):
         #     edges.append({"scope": copy(self.scope[-1]), "src": expr_name, "dst": cond_name, "type": "depends_on_" + cons_stat})
         return edges, expr_name
 
