@@ -1,35 +1,8 @@
 import ast
-from typing import Iterable, Dict, List, Type, Set
+from typing import Type, Set
 
 from nid.ast.graph_builder import PythonNodeEdgeDefinitions
-
-
-class NodeTypeNameError(Exception):
-    ...
-
-
-def get_available_fields_for_ast_node(ast_node_type_name: str) -> List[str]:
-    ast_node_type = getattr(ast, ast_node_type_name, None)
-    if ast_node_type is None:
-        raise NodeTypeNameError(f"No AST node type found for {ast_node_type_name}")
-
-    if hasattr(ast_node_type, "_fields"):
-        return list(ast_node_type._fields)
-
-
-def iterate_ast_node_types() -> Iterable[str]:
-    for item in dir(ast):
-        if item != "AST" and hasattr(getattr(ast, item), "_fields"):
-            yield item
-
-
-def get_all_node_edge_associations() -> Dict[str, List[str]]:
-    ast_node_type_fields = {}
-
-    for ast_note_type_name in iterate_ast_node_types():
-        ast_node_type_fields[ast_note_type_name] = get_available_fields_for_ast_node(ast_note_type_name)
-
-    return ast_node_type_fields
+from nid.ast.graph_builder.common.definitions import get_available_fields_for_ast_node
 
 
 def get_known_ast_node_types(definition_class: Type[PythonNodeEdgeDefinitions]) -> Set[str]:
