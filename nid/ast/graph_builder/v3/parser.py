@@ -7,6 +7,7 @@ from typing import Optional, Type, Dict, List, Iterable, Union, Tuple
 
 import pandas as pd
 
+from nid.ast.graph_builder.common.inspection import get_available_fields_for_ast_node
 from nid.ast.graph_builder.common.parser import GraphParser, GraphNodeId, EdgeImage, NodeImage
 from nid.ast.graph_builder.v3.definitions import PythonNodeEdgeDefinitionsV3
 from nid.ast.graph_builder.v3.primitives import GraphEdge, GraphNode
@@ -282,9 +283,9 @@ class GraphParserV3(GraphParser):
             logging.error(f"Failed parsing:")
             logging.error(f"{type(node)}")
             logging.error(f"{ast.dump(node)}")
-            logging.error(f"{node._fields}")
+            logging.error(f"{get_available_fields_for_ast_node(node.__name__)}")
             pprint(self._source_lines)
-            return self._generic_parse(node, node._fields)
+            return self._generic_parse(node, get_available_fields_for_ast_node(node.__name__))
 
     def _add_edge(
             self, edges, src: str, dst: str, type, scope: Optional[str] = None,

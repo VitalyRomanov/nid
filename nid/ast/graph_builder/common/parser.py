@@ -8,6 +8,7 @@ from typing import Any, Iterable, Optional, Tuple, Type, List, Union, Dict
 from nid.ast.graph_builder.common.definitions import PythonNodeEdgeDefinitions, GraphNodeId, EdgeImage, NodeImage
 from nid.ast.graph_builder.common.graph import ParsedGraph
 from nid.ast.graph_builder.common.identifiers import IdentifierPool
+from nid.ast.graph_builder.common.inspection import get_available_fields_for_ast_node
 from nid.ast.string_tools import to_offsets, get_cum_lens, get_byte_to_char_map
 
 
@@ -452,7 +453,7 @@ class GraphParser(AbstractGraphParser):
         return edges, node_name
 
     def _parse_node(self, node: ast.AST) -> Tuple[List[EdgeImage], GraphNodeId]:
-        return self._generic_parse(node, node._fields)
+        return self._generic_parse(node, get_available_fields_for_ast_node(node.__name__))
 
     def _normalize_edges(self, edges: Iterable[EdgeImage]) -> List[EdgeImage]:
         """

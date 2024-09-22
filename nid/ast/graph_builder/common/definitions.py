@@ -2,24 +2,11 @@ import ast
 from collections import defaultdict
 from enum import Enum
 from itertools import chain
-from typing import Dict, List, Optional, Set, Type, Any
+from typing import Dict, List, Optional, Set, Type, Any, Iterable
 
 GraphNodeId = str
 NodeImage = Dict[str, Any]
 EdgeImage = Dict[str, Any]
-
-
-def get_all_node_edge_associations() -> Dict[str, List[str]]:
-    items = dir(ast)
-
-    ast_node_type = {}
-
-    for item in items:
-        if hasattr(getattr(ast, item), "_fields"):
-            ast_node_type[item] = list(getattr(ast, item)._fields)
-
-    ast_node_type.pop("AST", None)
-    return ast_node_type
 
 
 class PythonNodeEdgeDefinitions:

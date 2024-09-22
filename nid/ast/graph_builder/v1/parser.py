@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 from nid.ast.graph_builder import PythonNodeEdgeDefinitions
 from nid.ast.graph_builder.common.definitions import EdgeImage
 from nid.ast.graph_builder.common.identifiers import IdentifierPool
+from nid.ast.graph_builder.common.inspection import get_available_fields_for_ast_node
 from nid.ast.graph_builder.common.parser import GraphParser
 from nid.ast.graph_builder.v1.graph import GraphFormatter
 from nid.ast.graph_builder.v1.primitives import GNode
@@ -83,7 +84,7 @@ class GraphParserV1(GraphFormatter, GraphParser):
         if hasattr(self, method_name):
             return self.__getattribute__(method_name)(node)
         else:
-            return self._generic_parse(node, node._fields)
+            return self._generic_parse(node, get_available_fields_for_ast_node(node.__name__))
 
     def _parse_body(self, nodes: List[ast.AST]) -> List[EdgeImage]:
         edges = []

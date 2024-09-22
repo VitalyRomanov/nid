@@ -6,6 +6,7 @@ from typing import Union, Type, Optional, Tuple, List, Any, Dict, Iterable
 
 from nid.ast.graph_builder import GraphParser
 from nid.ast.graph_builder.common.definitions import EdgeImage
+from nid.ast.graph_builder.common.inspection import get_available_fields_for_ast_node
 from nid.ast.graph_builder.v1.definitions import PythonSharedNodes
 from nid.ast.graph_builder.v1.graph import GraphFormatter
 from nid.ast.graph_builder.v1.primitives import GNode
@@ -403,7 +404,7 @@ class GraphParserV2(GraphFormatter, GraphParser):
         elif n_type in self._graph_definitions.control_flow_nodes:
             return self._parse_control_flow(node)
         else:
-            return self._generic_parse(node, node._fields)
+            return self._generic_parse(node, get_available_fields_for_ast_node(node.__name__))
 
     def _add_edge(
             self, edges, src: GNode, dst: GNode, type: str, scope: GNode = None,
